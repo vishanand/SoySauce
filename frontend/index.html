@@ -1,375 +1,198 @@
-<!DOCTYPE html>
-<html>
+<html class="" style=""><head>
+    <title>Microsoft Azure Region Map</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=500, initial-scale=1">
 
-<head>
-    <title>Interactive Search Quickstart - Azure Maps Web SDK Samples</title>
+    <script async="" src="https://www.google-analytics.com/analytics.js"></script><script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
 
-    <meta charset="utf-8" />
-    <meta http-equiv="x-ua-compatible" content="IE=Edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <meta name="description" content="This tutorial shows how to create an interactive search experience." />
-    <meta name="keywords" content="map, gis, API, SDK, services, module, tutorials, search, point of interest, POI" />
-    <meta name="author" content="Microsoft Azure Maps" />
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
-    <!-- Add references to the Azure Maps Map control JavaScript and CSS files. -->
-    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css" />
-    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
-
-    <!-- Add a reference to the Azure Maps Services Module JavaScript file. -->
-    <script src="https://atlas.microsoft.com/sdk/javascript/service/2/atlas-service.min.js"></script>
-
-    <script>
-        var map, datasource, client, popup, searchInput, resultsPanel, searchInputLength, centerMapOnResults;
-
-        //The minimum number of characters needed in the search input before a search is performed.
-        var minSearchInputLength = 3;
-
-        //The number of ms between key strokes to wait before performing a search.
-        var keyStrokeDelay = 150;
-
-        function GetMap() {
-            //Initialize a map instance.
-            map = new atlas.Map('myMap', {
-                center: [-118.270293, 34.039737],
-                zoom: 14,
-                view: 'Auto',
-
-                //Add your Azure Maps subscription key to the map SDK. Get an Azure Maps key at https://azure.com/maps
-                authOptions: {
-                    authType: 'subscriptionKey',
-                    subscriptionKey: '-kpBJTkTaDyoV4mIjlFzb0IDSqmVJ31vAtV0-J_ucPM'
-                }
-            });
-
-            //Store a reference to the Search Info Panel.
-            resultsPanel = document.getElementById("results-panel");
-
-            //Add key up event to the search box.
-            searchInput = document.getElementById("search-input");
-            searchInput.addEventListener("keyup", searchInputKeyup);
-
-            //Create a popup which we can reuse for each result.
-            popup = new atlas.Popup();
-
-            //Wait until the map resources are ready.
-            map.events.add('ready', function () {
-
-                //Add the zoom control to the map.
-                map.controls.add(new atlas.control.ZoomControl(), {
-                    position: 'top-right'
-                });
-
-                //Create a data source and add it to the map.
-                datasource = new atlas.source.DataSource();
-                map.sources.add(datasource);
-
-                //Add a layer for rendering the results.
-                var searchLayer = new atlas.layer.SymbolLayer(datasource, null, {
-                    iconOptions: {
-                        image: 'pin-round-darkblue',
-                        anchor: 'center',
-                        allowOverlap: true
-                    }
-                });
-                map.layers.add(searchLayer);
-
-                //Add a click event to the search layer and show a popup when a result is clicked.
-                map.events.add("click", searchLayer, function (e) {
-                    //Make sure the event occurred on a shape feature.
-                    if (e.shapes && e.shapes.length > 0) {
-                        showPopup(e.shapes[0]);
-                    }
-                });
-
-                //Create a data source and add it to the map.
-                datasource = new atlas.source.DataSource();
-                map.sources.add(datasource);
-                //Load a data set of points, in this case earthquake data from the USGS.
-                datasource.importDataFromUrl('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson');
-                //Create a heatmap and add it to the map.
-                map.layers.add(new atlas.layer.HeatMapLayer(datasource, null, {
-                    radius: 10,
-                    opacity: 0.8
-                }), 'labels');
-            });
-        }
-        function searchInputKeyup(e) {
-            centerMapOnResults = false;
-            if (searchInput.value.length >= minSearchInputLength) {
-                if (e.keyCode === 13) {
-                    centerMapOnResults = true;
-                }
-                //Wait 100ms and see if the input length is unchanged before performing a search.
-                //This will reduce the number of queries being made on each character typed.
-                setTimeout(function () {
-                    if (searchInputLength == searchInput.value.length) {
-                        search();
-                    }
-                }, keyStrokeDelay);
-            } else {
-                resultsPanel.innerHTML = '';
-            }
-            searchInputLength = searchInput.value.length;
-        }
-        function search() {
-            //Remove any previous results from the map.
-            datasource.clear();
-            popup.close();
-            resultsPanel.innerHTML = '';
-
-            //Use SubscriptionKeyCredential with a subscription key
-            var subscriptionKeyCredential = new atlas.service.SubscriptionKeyCredential(atlas.getSubscriptionKey());
-
-            //Use subscriptionKeyCredential to create a pipeline
-            var pipeline = atlas.service.MapsURL.newPipeline(subscriptionKeyCredential);
-
-            //Construct the SearchURL object
-            var searchURL = new atlas.service.SearchURL(pipeline);
-
-            var query = document.getElementById("search-input").value;
-            searchURL.searchPOI(atlas.service.Aborter.timeout(10000), query, {
-                lon: map.getCamera().center[0],
-                lat: map.getCamera().center[1],
-                maxFuzzyLevel: 4,
-                view: 'Auto'
-            }).then((results) => {
-
-                //Extract GeoJSON feature collection from the response and add it to the datasource
-                var data = results.geojson.getFeatures();
-                datasource.add(data);
-
-                if (centerMapOnResults) {
-                    map.setCamera({
-                        bounds: data.bbox
-                    });
-                }
-                console.log(data);
-                //Create the HTML for the results list.
-                var html = [];
-                for (var i = 0; i < data.features.length; i++) {
-                    var r = data.features[i];
-                    html.push('<li onclick="itemClicked(\'', r.id, '\')" onmouseover="itemHovered(\'', r.id, '\')">')
-                    html.push('<div class="title">');
-                    if (r.properties.poi && r.properties.poi.name) {
-                        html.push(r.properties.poi.name);
-                    } else {
-                        html.push(r.properties.address.freeformAddress);
-                    }
-                    html.push('</div><div class="info">', r.properties.type, ': ', r.properties.address.freeformAddress, '</div>');
-                    if (r.properties.poi) {
-                        if (r.properties.phone) {
-                            html.push('<div class="info">phone: ', r.properties.poi.phone, '</div>');
-                        }
-                        if (r.properties.poi.url) {
-                            html.push('<div class="info"><a href="http://', r.properties.poi.url, '">http://', r.properties.poi.url, '</a></div>');
-                        }
-                    }
-                    html.push('</li>');
-                    resultsPanel.innerHTML = html.join('');
-                }
-
-            });
-        }
-        function itemHovered(id) {
-            //Show a popup when hovering an item in the result list.
-            var shape = datasource.getShapeById(id);
-            showPopup(shape);
-        }
-        function itemClicked(id) {
-            //Center the map over the clicked item from the result list.
-            var shape = datasource.getShapeById(id);
-            map.setCamera({
-                center: shape.getCoordinates(),
-                zoom: 17
-            });
-        }
-        function showPopup(shape) {
-            var properties = shape.getProperties();
-            //Create the HTML content of the POI to show in the popup.
-            var html = ['<div class="poi-box">'];
-            //Add a title section for the popup.
-            html.push('<div class="poi-title-box"><b>');
-
-            if (properties.poi && properties.poi.name) {
-                html.push(properties.poi.name);
-            } else {
-                html.push(properties.address.freeformAddress);
-            }
-            html.push('</b></div>');
-            //Create a container for the body of the content of the popup.
-            html.push('<div class="poi-content-box">');
-            html.push('<div class="info location">', properties.address.freeformAddress, '</div>');
-            if (properties.poi) {
-                if (properties.poi.phone) {
-                    html.push('<div class="info phone">', properties.phone, '</div>');
-                }
-                if (properties.poi.url) {
-                    html.push('<div><a class="info website" href="http://', properties.poi.url, '">http://', properties.poi.url, '</a></div>');
-                }
-            }
-            html.push('</div></div>');
-            popup.setOptions({
-                position: shape.getCoordinates(),
-                content: html.join('')
-            });
-            popup.open(map);
-        }
-    </script>
     <style>
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            padding: 0;
-            margin: 0;
-            overflow:hidden;
-            font-family: segoeui;
-        }
         #myMap {
-            position: relative;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-        }
-        #search {
-            position: absolute;
-            left: 0px;
-            top: 0px;
-            width: 400px;
-            box-shadow: 0px 24px 74px 0px rgba(0, 0, 0, .32);
-            border: 1px solid #ccc;
-            overflow-y: hidden;
-        }
-        #search > .search-input-box {
-            background: #fff;
-            height: 72px;
-            width: 100%;
-        }
-        #search > .search-input-box > .search-input-group {
-            position: relative;
-            top: 20px;
-            left: 20px;
-            width: 358px;
-            height: 30px;
-            margin: 0;
-            padding: 0;
-            border: 1px dotted #ccc;
-        }
-        #search > .search-input-box > .search-input-group > .search-icon {
-            margin: 0;
-            padding: 0;
-            background-size: 20px 20px;
-            width: 30px;
-            height: 30px;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-image: url("data:image/svg+xml,%3Csvg id='Layer_1' data-name='Layer 1' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctitle%3E-%3C/title%3E%3Cpath d='M10.5,0a5.4457,5.4457,0,0,1,2.7734.75A5.6134,5.6134,0,0,1,15.25,2.7266a5.5224,5.5224,0,0,1,.5547,4.2344A5.4147,5.4147,0,0,1,15.25,8.2734,5.6134,5.6134,0,0,1,13.2734,10.25a5.5014,5.5014,0,0,1-4.6445.4219,5.6256,5.6256,0,0,1-1.6445-.9453L.8516,15.8516A.4807.4807,0,0,1,.5,16a.4823.4823,0,0,1-.3516-.1484.4905.4905,0,0,1,0-.7031l6.125-6.1328a5.6194,5.6194,0,0,1-.9453-1.6445A5.39,5.39,0,0,1,5,5.5a5.4457,5.4457,0,0,1,.75-2.7734A5.6134,5.6134,0,0,1,7.7266.75,5.4457,5.4457,0,0,1,10.5,0Zm0,10a4.347,4.347,0,0,0,1.75-.3555A4.5254,4.5254,0,0,0,14.6445,7.25,4.347,4.347,0,0,0,15,5.5a4.347,4.347,0,0,0-.3555-1.75A4.5254,4.5254,0,0,0,12.25,1.3555a4.4854,4.4854,0,0,0-3.5,0A4.5254,4.5254,0,0,0,6.3555,3.75a4.4854,4.4854,0,0,0,0,3.5A4.5254,4.5254,0,0,0,8.75,9.6445,4.3487,4.3487,0,0,0,10.5,10Z' fill='%234b4b4b'/%3E%3C/svg%3E");
-        }
-        #search > .search-input-box > .search-input-group > input {
-            display: inline-block;
-            position: absolute;
-            top: 0px;
-            left: 30px;
-            width: calc(100% - 40px);
-            height: 100%;
-            margin: 0;
-            padding: 0 5px;
-            border-collapse: collapse;
-            border: 0px;
-        }
-        #search > .search-input-box > .search-input-group > input:focus {
-            outline: none;
-        }
-        #results-panel {
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            background-color: #fff;
-            list-style: none;
-            overflow-y: auto;
-            max-height: calc(100vh - 119px);
-        }
-        #results-panel > li {
-            border-top: 1px dotted #ccc;
-            padding: 10px 20px;
-        }
-        #results-panel > li:hover {
-            background-color: #f1f2f2;
-            cursor: pointer;
-        }
-        #results-panel > li > .title {
-            font-family: segoeui-b;
-            line-height: 14pt;
-            width: 100%;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            overflow: hidden;
-        }
-        #results-panel > li > .info {
-            width: 100%;
-            line-height: 14pt;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            overflow: hidden;
-        }
-        .poi-box {
-            max-width: 200px;
-            padding: 0;
-            margin: 0;
-        }
-        .poi-title-box {
-            background-color: #153C64;
-            width: calc(100% - 16px);
-            height: 23px;
-            padding: 8px;
-            color: #fff;
-            font-size: 12px;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            overflow: hidden;
-            border-top-left-radius: 4px;
-            border-top-right-radius: 4px;
-            font-family: segoeui-b;
-        }
-        .poi-content-box {
-            width: calc(100% - 16px);
-            height: calc(100% - 39px);
-            padding: 8px;
-        }
-        .poi-content-box .info {
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            overflow: hidden;
-            display: block;
-            background-repeat: no-repeat;
-            background-position: left;
-            padding-left: 15px;
-            background-size: 10px 10px;
-            width: calc(100% - 15px);
-        }
-        .info .phone {
-            background-image: url("data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNS45NzQ2IDI2Ij48dGl0bGU+cG9pPC90aXRsZT48cGF0aCBkPSJNMjAuMzkxNCwxNS4zOTk0YTIuODE0MSwyLjgxNDEsMCwwLDEsMS4wNzIyLjIwOTUsMi43MjQzLDIuNzI0MywwLDAsMSwuOTA3My42MDNsMi43OTE2LDIuNzkzYTIuNzI1OCwyLjcyNTgsMCwwLDEsLjYwMjcuOTA3NywyLjg1MjksMi44NTI5LDAsMCwxLDAsMi4xNDU1LDIuNzI1OCwyLjcyNTgsMCwwLDEtLjYwMjcuOTA3N3EtLjcyMzMuNzM2My0xLjMyLDEuMzAxM2E3LjQwNDMsNy40MDQzLDAsMCwxLTEuMjMwOC45NTIxLDUuMDk1LDUuMDk1LDAsMCwxLTEuNDA4NS41ODRBNy42NjM4LDcuNjYzOCwwLDAsMSwxOS4zMzgyLDI2YTExLjQ3NywxMS40NzcsMCwwLDEtMy4yNjExLS40OTUxLDE4LjA4ODIsMTguMDg4MiwwLDAsMS0zLjMzMDktMS4zNzExLDIzLjg4LDIzLjg4LDAsMCwxLTMuMjQ4NC0yLjA4MkEyOC4xNTgsMjguMTU4LDAsMCwxLDYuNDksMTkuNDE3NSwyOC44OTc1LDI4Ljg5NzUsMCwwLDEsMy44ODI5LDE2LjM5NmEyMy42NzQ3LDIzLjY3NDcsMCwwLDEtMi4wNTU2LTMuMjVBMTguMjMyNywxOC4yMzI3LDAsMCwxLC40ODIyLDkuODM4OSwxMS4zODY0LDExLjM4NjQsMCwwLDEsMCw2LjY0LDcuNTk1Niw3LjU5NTYsMCwwLDEsLjE5NjcsNC43OCw1LjIxLDUuMjEsMCwwLDEsLjc4LDMuMzcwNmE3LjA3NSw3LjA3NSwwLDAsMSwuOTUxNy0xLjIzMTRxLjU2NDctLjU5LDEuMzAwNi0xLjMxNEEyLjgyNywyLjgyNywwLDAsMSwzLjkzMzYuMjE1OGEyLjc4NzIsMi43ODcyLDAsMCwxLDIuMTUwOCwwLDIuODA3OSwyLjgwNzksMCwwLDEsLjkwNzMuNjA5NGwyLjc5MTYsMi43OTNhMi43MjU4LDIuNzI1OCwwLDAsMSwuNjAyNy45MDc3LDIuODE3OSwyLjgxNzksMCwwLDEsLjIwOTQsMS4wNzI4LDIuNDc4LDIuNDc4LDAsMCwxLS4xOS45OTY2LDMuNjAxNiwzLjYwMTYsMCwwLDEtLjQ2OTUuNzkzNSw0LjY5NzksNC42OTc5LDAsMCwxLS42MTU0LjY0NzVxLS4zMzYzLjI5Mi0uNjE1NC41NzEzYTMuNzMyNCwzLjczMjQsMCwwLDAtLjQ2OTUuNTY0OSwxLjA4OTQsMS4wODk0LDAsMCwwLS4xOS42MTU3LDEuMTI1MiwxLjEyNTIsMCwwLDAsLjM0MjYuODI1Mmw2Ljk5MTcsNi45OTUxYTEuMTI0MSwxLjEyNDEsMCwwLDAsLjgyNDguMzQyOCwxLjA4ODEsMS4wODgxLDAsMCwwLC42MTU0LS4xOSwzLjczMTMsMy43MzEzLDAsMCwwLC41NjQ3LS40N3EuMjc5Mi0uMjc5My41NzEtLjYxNTdhNC42OTc1LDQuNjk3NSwwLDAsMSwuNjQ3MS0uNjE1NywzLjU5OTEsMy41OTkxLDAsMCwxLC43OTMxLS40NywyLjQ3NDcsMi40NzQ3LDAsMCwxLC45OTYxLS4xOU0xOS4zMzgyLDI0LjM3NWE1Ljc5NDIsNS43OTQyLDAsMCwwLDEuNTI5LS4xNzE0LDMuOTQ3OCwzLjk0NzgsMCwwLDAsMS4xMS0uNDk1MSw1LjczNDEsNS43MzQxLDAsMCwwLC45NjQ0LS44MDYycS40Njk1LS40ODI0LDEuMDc4Ni0xLjA5MThhMS4xMjUyLDEuMTI1MiwwLDAsMCwuMzQyNi0uODI1MiwxLjEwNDUsMS4xMDQ1LDAsMCwwLS4xODQtLjU0LDQuNzY0OSw0Ljc2NDksMCwwLDAtLjQ3NTgtLjY1MzhxLS4yOTE5LS4zNDI4LS42NTM1LS43MDQ2dC0uNzEwNi0uNjg1NXEtLjM0OS0uMzIzNy0uNjQ3MS0uNTk2N3QtLjQ2MzItLjQzOGExLjEzODksMS4xMzg5LDAsMCwwLS44Mzc1LS4zNDI4LDEuMDU4NywxLjA1ODcsMCwwLDAtLjYwOTEuMTksMy45MTY4LDMuOTE2OCwwLDAsMC0uNTU4My40N3EtLjI3OTIuMjc5My0uNTc3NC42MTU3YTUuMDAyNiw1LjAwMjYsMCwwLDEtLjY1MzUuNjE1NywzLjU5OTEsMy41OTkxLDAsMCwxLS43OTMxLjQ3LDIuNDc0NywyLjQ3NDcsMCwwLDEtLjk5NjEuMTksMi44MTQxLDIuODE0MSwwLDAsMS0xLjA3MjItLjIwOTUsMi43MjQzLDIuNzI0MywwLDAsMS0uOTA3My0uNjAzTDcuMjMyOCwxMS43Njg2YTIuNzI1OCwyLjcyNTgsMCwwLDEtLjYwMjctLjkwNzcsMi44MTc5LDIuODE3OSwwLDAsMS0uMjA5NC0xLjA3MjgsMi40NzgsMi40NzgsMCwwLDEsLjE5LS45OTY2LDMuNjAxNiwzLjYwMTYsMCwwLDEsLjQ2OTUtLjc5MzUsNS4wMDMsNS4wMDMsMCwwLDEsLjYxNTQtLjY1MzhxLjMzNjMtLjI5ODMuNjE1NC0uNTc3NmEzLjkxNzgsMy45MTc4LDAsMCwwLC40Njk1LS41NTg2LDEuMDYsMS4wNiwwLDAsMCwuMTktLjYwOTQsMS4xNCwxLjE0LDAsMCwwLS4zNDI2LS44Mzc5cS0uMTY1LS4xNjUtLjQzNzgtLjQ2MzRUNy41OTQ0LDMuNjVxLS4zMjM2LS4zNDkxLS42ODUyLS43MTA5VDYuMjA1LDIuMjg1MmE0Ljc2MjcsNC43NjI3LDAsMCwwLS42NTM1LS40NzYxLDEuMTAzMiwxLjEwMzIsMCwwLDAtLjUzOTMtLjE4NDEsMS4xMjQxLDEuMTI0MSwwLDAsMC0uODI0OC4zNDI4cS0uNjA5MS42MDk0LTEuMDg0OSwxLjA3OTFhNi40NjgzLDYuNDY4MywwLDAsMC0uODEyMS45NjQ4LDMuNzUsMy43NSwwLDAsMC0uNTA3NiwxLjExMDhBNS43NDQyLDUuNzQ0MiwwLDAsMCwxLjYxMTUsNi42NGE5Ljk4MzQsOS45ODM0LDAsMCwwLC40NjMyLDIuOTMyNiwxNi41LDE2LjUsMCwwLDAsMS4yODE2LDMuMDIxNSwyMy4wMTM3LDIzLjAxMzcsMCwwLDAsMS45MzUxLDIuOTc3MSwyNi41MjI5LDI2LjUyMjksMCwwLDAsMi40MzYzLDIuNzczOSwyNy4yODMyLDI3LjI4MzIsMCwwLDAsMi43ODUzLDIuNDEyMSwyMi45ODcsMjIuOTg3LDAsMCwwLDIuOTY5MywxLjkxMDYsMTYuMzY2MSwxNi4zNjYxLDAsMCwwLDIuOTk0NiwxLjI1NjhBOS44ODEsOS44ODEsMCwwLDAsMTkuMzM4MiwyNC4zNzVaIiBmaWxsPSIjNjY2NzY3Ii8+PC9zdmc+");
-        }
-        .info .website {
-            background-image: url("data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNyAyNyI+PHRpdGxlPnBvaTwvdGl0bGU+PHBhdGggZD0iTTEzLjUsMGExMy4yOTc4LDEzLjI5NzgsMCwwLDEsMy41ODU5LjQ4MTIsMTMuNjUyNCwxMy42NTI0LDAsMCwxLDMuMjMsMS4zNTc5LDEzLjQ3NDMsMTMuNDc0MywwLDAsMSw0Ljg0NSw0Ljg0NSwxMy42NTI0LDEzLjY1MjQsMCwwLDEsMS4zNTc5LDMuMjMsMTMuNjAxOSwxMy42MDE5LDAsMCwxLDAsNy4xNzE5LDEzLjY1MjQsMTMuNjUyNCwwLDAsMS0xLjM1NzksMy4yMywxMy40NzQzLDEzLjQ3NDMsMCwwLDEtNC44NDUsNC44NDUsMTMuNjUyNCwxMy42NTI0LDAsMCwxLTMuMjMsMS4zNTc5LDEzLjYwMTksMTMuNjAxOSwwLDAsMS03LjE3MTksMCwxMy42NTI0LDEzLjY1MjQsMCwwLDEtMy4yMy0xLjM1NzksMTMuNDc0MywxMy40NzQzLDAsMCwxLTQuODQ1LTQuODQ1QTEzLjY4MTIsMTMuNjgxMiwwLDAsMSwuNDgxMiwxNy4wOTI1YTEzLjYyNjUsMTMuNjI2NSwwLDAsMSwwLTcuMTc4NSwxMy42NTI0LDEzLjY1MjQsMCwwLDEsMS4zNTc5LTMuMjMsMTMuNDc0MywxMy40NzQzLDAsMCwxLDQuODQ1LTQuODQ1QTEzLjY4MTIsMTMuNjgxMiwwLDAsMSw5LjkwNzUuNDgxMiwxMy4yNzU1LDEzLjI3NTUsMCwwLDEsMTMuNSwwTTI0LjE2NTUsOC40Mzc1YTExLjI2NzgsMTEuMjY3OCwwLDAsMC0xLjIxMjktMi4wMSwxMi4wMDg0LDEyLjAwODQsMCwwLDAtMS41ODItMS43MiwxMi4yNCwxMi4yNCwwLDAsMC0xLjg4NTMtMS4zODQzLDExLjM1MjYsMTEuMzUyNiwwLDAsMC0yLjEyMjYtLjk4ODhBMTEuMjA5NCwxMS4yMDk0LDAsMCwxLDE4LjIyLDMuNzMxYTE0LjMzMTYsMTQuMzMxNiwwLDAsMSwuNjc5LDEuNTIyNywxNS44Nzc1LDE1Ljg3NzUsMCwwLDEsLjUwNzYsMS41ODg2cS4yMTA5LjgwNDIuMzY5MSwxLjU5NTJoNC4zOU0yNS4zMTI1LDEzLjVhMTEuNjUyNSwxMS42NTI1LDAsMCwwLS40ODc4LTMuMzc1SDIwLjAzOTFxLjEwNTUuODQzNy4xNTgyLDEuNjgwOVQyMC4yNSwxMy41cTAsLjg1NjktLjA1MjcsMS42OTQxdC0uMTU4MiwxLjY4MDloNC43ODU2YTExLjY1MjUsMTEuNjUyNSwwLDAsMCwuNDg3OC0zLjM3NU0xMy41LDI1LjMxMjVhMi4yMDg2LDIuMjA4NiwwLDAsMCwxLjIwNjMtLjM1Niw0LjM3Niw0LjM3NiwwLDAsMCwxLjAzNDktLjkzNiw3LjQwMjUsNy40MDI1LDAsMCwwLC44NS0xLjMxMTgsMTUuMzI3MiwxNS4zMjcyLDAsMCwwLC42NjU4LTEuNDgzMnEuMjktLjc1MTUuNDg3OC0xLjQ1dC4zMDMyLTEuMjEyOUg4Ljk1MTdxLjEwNTUuNTE0Mi4zMDMyLDEuMjEyOXQuNDg3OCwxLjQ1YTE1LjMyNzQsMTUuMzI3NCwwLDAsMCwuNjY1OCwxLjQ4MzIsNy40MDI1LDcuNDAyNSwwLDAsMCwuODUsMS4zMTE4LDQuMzc2MSw0LjM3NjEsMCwwLDAsMS4wMzQ5LjkzNiwyLjIwODYsMi4yMDg2LDAsMCwwLDEuMjA2My4zNTZtNC44Mzg0LTguNDM3NXEuMTA1NS0uODQzOC4xNjQ4LTEuNjgwOVQxOC41NjI1LDEzLjVxMC0uODU2OS0uMDU5My0xLjY5NDF0LS4xNjQ4LTEuNjgwOUg4LjY2MTZxLS4xMDU1Ljg0MzctLjE2NDgsMS42ODA5VDguNDM3NSwxMy41cTAsLjg1NjkuMDU5MywxLjY5NDF0LjE2NDgsMS42ODA5aDkuNjc2OE0xLjY4NzUsMTMuNWExMS42NTI1LDExLjY1MjUsMCwwLDAsLjQ4NzgsMy4zNzVINi45NjA5cS0uMTA1NS0uODQzOC0uMTU4Mi0xLjY4MDlUNi43NSwxMy41cTAtLjg1NjkuMDUyNy0xLjY5NDF0LjE1ODItMS42ODA5SDIuMTc1M0ExMS42NTI1LDExLjY1MjUsMCwwLDAsMS42ODc1LDEzLjVNMTMuNSwxLjY4NzVhMi4yMDg2LDIuMjA4NiwwLDAsMC0xLjIwNjMuMzU2LDQuMzc2LDQuMzc2LDAsMCwwLTEuMDM0OS45MzYsNy40MDI1LDcuNDAyNSwwLDAsMC0uODUsMS4zMTE4LDE1LjMyNzQsMTUuMzI3NCwwLDAsMC0uNjY1OCwxLjQ4MzJxLS4yOS43NTE1LS40ODc4LDEuNDVUOC45NTE3LDguNDM3NWg5LjA5NjdxLS4xMDU1LS41MTQyLS4zMDMyLTEuMjEyOXQtLjQ4NzgtMS40NWExNS4zMjcyLDE1LjMyNzIsMCwwLDAtLjY2NTgtMS40ODMyLDcuNDAyNSw3LjQwMjUsMCwwLDAtLjg1LTEuMzExOCw0LjM3Niw0LjM3NiwwLDAsMC0xLjAzNDktLjkzNkEyLjIwODYsMi4yMDg2LDAsMCwwLDEzLjUsMS42ODc1bS0zLjg2MjguNjQ2YTExLjM1MjYsMTEuMzUyNiwwLDAsMC0yLjEyMjYuOTg4OEExMi4yNCwxMi4yNCwwLDAsMCw1LjYyOTQsNC43MDY1YTEyLjAwODQsMTIuMDA4NCwwLDAsMC0xLjU4MiwxLjcyLDExLjI2NzgsMTEuMjY3OCwwLDAsMC0xLjIxMjksMi4wMWg0LjM5cS4xNTgyLS43OTEuMzY5MS0xLjU5NTJhMTUuODc3OCwxNS44Nzc4LDAsMCwxLC41MDc2LTEuNTg4NkExNC4zMzE3LDE0LjMzMTcsMCwwLDEsOC43OCwzLjczMWExMS4yMDkzLDExLjIwOTMsMCwwLDEsLjg1NjktMS4zOTc1TTIuODM0NSwxOC41NjI1YTExLjI2NzgsMTEuMjY3OCwwLDAsMCwxLjIxMjksMi4wMSwxMi4wMDgzLDEyLjAwODMsMCwwLDAsMS41ODIsMS43MiwxMi4yNCwxMi4yNCwwLDAsMCwxLjg4NTMsMS4zODQzLDExLjM1MjUsMTEuMzUyNSwwLDAsMCwyLjEyMjYuOTg4OEExMS4yMDkzLDExLjIwOTMsMCwwLDEsOC43OCwyMy4yNjlhMTQuMzMxNywxNC4zMzE3LDAsMCwxLS42NzktMS41MjI3LDE1Ljg3NzgsMTUuODc3OCwwLDAsMS0uNTA3Ni0xLjU4ODZxLS4yMTA5LS44MDQyLS4zNjkxLTEuNTk1MmgtNC4zOW0xNC41MjgzLDYuMTA0YTExLjM1MjYsMTEuMzUyNiwwLDAsMCwyLjEyMjYtLjk4ODgsMTIuMjQsMTIuMjQsMCwwLDAsMS44ODUzLTEuMzg0MywxMi4wMDgzLDEyLjAwODMsMCwwLDAsMS41ODItMS43MiwxMS4yNjc5LDExLjI2NzksMCwwLDAsMS4yMTI5LTIuMDFoLTQuMzlxLS4xNTgyLjc5MS0uMzY5MSwxLjU5NTJhMTUuODc3NSwxNS44Nzc1LDAsMCwxLS41MDc2LDEuNTg4NiwxNC4zMzE1LDE0LjMzMTUsMCwwLDEtLjY3OSwxLjUyMjdBMTEuMjA5NCwxMS4yMDk0LDAsMCwxLDE3LjM2MjgsMjQuNjY2NVoiIGZpbGw9IiM2NjY3NjciLz48L3N2Zz4=");
-        }
-        .info .location {
-            background-image: url("data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNyAzNiI+PHRpdGxlPnBvaTwvdGl0bGU+PHBhdGggZD0iTTEzLjUsMGExMy4zNywxMy4zNywwLDAsMSwzLjU4NTkuNDc5MiwxMy43ODY2LDEzLjc4NjYsMCwwLDEsMy4yMjczLDEuMzQzOCwxMy4zMzg2LDEzLjMzODYsMCwwLDEsNi4yMDE2LDcuOTY4N0ExMi45MDA5LDEyLjkwMDksMCwwLDEsMjcsMTMuMzMzM2ExMC41NjY0LDEwLjU2NjQsMCwwLDEtLjM0OCwyLjc0LDEzLjQwNTEsMTMuNDA1MSwwLDAsMS0xLjAwMiwyLjU5MzhMMTMuNSwzNiwxLjM1LDE4LjY2NjdBMTMuNDA1LDEzLjQwNSwwLDAsMSwuMzQ4LDE2LjA3MjksMTAuNTY2NCwxMC41NjY0LDAsMCwxLDAsMTMuMzMzMywxMi45MDA5LDEyLjkwMDksMCwwLDEsLjQ4NTIsOS43OTE3LDEzLjQzNDYsMTMuNDM0NiwwLDAsMSwxLjg0NTcsNi42MDQyYTEzLjQ1MywxMy40NTMsMCwwLDEsNC44NDEtNC43ODEyQTEzLjc4NjUsMTMuNzg2NSwwLDAsMSw5LjkxNDEuNDc5MiwxMy4zNywxMy4zNywwLDAsMSwxMy41LDBNMjMuNTQwNiwxNy42MjVxMC0uMDIwOC4wMTA1LS4wMjA4dC4wMTA1LS4wMjA4YTguOTgsOC45OCwwLDAsMCwuODAxNi0yLjA2MjUsOC44ODE2LDguODgxNiwwLDAsMCwuMjc0Mi0yLjE4NzUsMTAuNTMzNywxMC41MzM3LDAsMCwwLS44NzU0LTQuMjcwOCwxMS4xNTYxLDExLjE1NjEsMCwwLDAtMi4zOTQxLTMuNSwxMS4zMSwxMS4zMSwwLDAsMC0zLjU0MzctMi4zNjQ2QTEwLjg5NjEsMTAuODk2MSwwLDAsMCwxMy41LDIuMzMzM2ExMC44OTYxLDEwLjg5NjEsMCwwLDAtNC4zMjQyLjg2NDZBMTEuMzEsMTEuMzEsMCwwLDAsNS42MzIsNS41NjI1YTExLjE1NjEsMTEuMTU2MSwwLDAsMC0yLjM5NDEsMy41LDEwLjUzMzcsMTAuNTMzNywwLDAsMC0uODc1NCw0LjI3MDgsOC44ODE1LDguODgxNSwwLDAsMCwuMjc0MiwyLjE4NzUsOC45OCw4Ljk4LDAsMCwwLC44MDE2LDIuMDYyNXEwLC4wMjA4LjAxMDUuMDIwOHQuMDEwNS4wMjA4TDEzLjUsMzAuNzkxNywyMy41NDA2LDE3LjYyNU0xMy41LDUuNWE3LjgxMjIsNy44MTIyLDAsMCwxLDMuMDkuNjE0Niw4LjAwOTMsOC4wMDkzLDAsMCwxLDIuNTIwNywxLjY3NzEsNy45LDcuOSwwLDAsMSwxLjY5OCwyLjQ5LDcuNzk2LDcuNzk2LDAsMCwxLDAsNi4xMDQyLDcuOSw3LjksMCwwLDEtMS42OTgsMi40OUE4LjAwOTMsOC4wMDkzLDAsMCwxLDE2LjU5LDIwLjU1MjFhOC4wNzY0LDguMDc2NCwwLDAsMS02LjE4LDBBOC4wMDkyLDguMDA5MiwwLDAsMSw3Ljg4OTEsMTguODc1YTcuOSw3LjksMCwwLDEtMS42OTgtMi40OSw3Ljc5Niw3Ljc5NiwwLDAsMSwwLTYuMTA0Miw3LjksNy45LDAsMCwxLDEuNjk4LTIuNDlBOC4wMDkyLDguMDA5MiwwLDAsMSwxMC40MSw2LjExNDYsNy44MTIzLDcuODEyMywwLDAsMSwxMy41LDUuNW0wLDEzLjMzMzNhNS41NDA3LDUuNTQwNywwLDAsMCw1LjEzNjMtMy4zNTQyLDUuNTQsNS41NCwwLDAsMCwwLTQuMjkxNyw1LjUwNTQsNS41MDU0LDAsMCwwLTEuMTkxOC0xLjc1LDUuNjI4OSw1LjYyODksMCwwLDAtNy44ODkxLDAsNS41MDU0LDUuNTA1NCwwLDAsMC0xLjE5MTgsMS43NSw1LjU0LDUuNTQsMCwwLDAsMCw0LjI5MTcsNS41MDU0LDUuNTA1NCwwLDAsMCwxLjE5MTgsMS43NUE1LjU2OTQsNS41Njk0LDAsMCwwLDEzLjUsMTguODMzM1oiIGZpbGw9IiM2NzY4NjciLz48L3N2Zz4=");
         }
     </style>
-</head>
+    <script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/b99d9ef6/7532ed8f.js?bu=B6EF0gXUBdYFlgXaBakF"></script><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/8fbca6bb/92508bd0.js?bu=AYkF"></script><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/9202f43d/ecffe97e.js?bu=A6EF5AWpBQ"></script><link type="text/css" rel="stylesheet" href="https://www.bing.com/rb/3w/cir2,cc,nc/b575c195/236ba1f0.css?bu=AucF_AU"><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/10fd5e72/f452db66.js?bu=BKEFogaCBqkF"></script><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/d7a3f036/03c2b45e.js?bu=A6EFzQepBQ"></script><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/f65b349f/a6f5c05c.js?bu=A6EF3wWpBQ"></script><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/3e751f60/a383d048.js?bu=A6EF0gepBQ"></script><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/c07c47c7/39fef661.js?bu=A6EFyQapBQ"></script><link type="text/css" rel="stylesheet" href="https://www.bing.com/rs/3w/43/cir2,cc,nc/bd38b5de/ba03abe6.css"><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/163a10ee/e2b6cd91.js?bu=BKEFlAWGAqkF"></script><link type="text/css" rel="stylesheet" href="https://www.bing.com/rb/3w/cir2,cc,nc/f3afe207/7de0e1ac.css?bu=AqwGvAY"><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/7767e336/1e0cacac.js?bu=BKEFoganBqkF"></script><link type="text/css" rel="stylesheet" href="https://www.bing.com/rs/3w/du/cir2,cc,nc/439fdcd9/5944815d.css"><script type="text/javascript" src="https://www.bing.com/rb/3w/cj,nj/12cd080c/e8f4cba0.js?bu=A6EFwQapBQ"></script></head>
+<body class="">
+<!-- Fixed navbar -->
+<nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">Microsoft Azure Region Map</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse" aria-expanded="false" style="height: 1px;">
+            <ul class="nav navbar-nav">
 
-<body onload="GetMap()">
-<div id="myMap"></div>
+                <li><a href="#" data-toggle="modal" data-target="#faqModal">FAQ</a></li>
+                <li><a href="#" data-toggle="modal" data-target="#aboutModal">About</a></li>
+                <li>
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">Other Maps <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="http://map-cdn.buildazure.com">Azure CDN Endpoints</a></li>
+                    </ul>
+                </li>
 
-<div id="search">
-    <div class="search-input-box">
-        <div class="search-input-group">
-            <div class="search-icon" type="button"></div>
-            <input id="search-input" type="text" placeholder="Search">
+            </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</nav>
+
+<!-- About Modal -->
+<div class="modal fade" id="aboutModal" tabindex="-1" role="dialog" aria-labelledby="aboutModalLabel" style="display: none;">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                <h4 class="modal-title" id="aboutModalLabel">About</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    The Microsoft Azure Regions Interactive Map shows the location of each of the Microsoft Azure Regions plotted over a map using the Bing Maps v8 JavaScript SDK.
+                </p>
+                <p>
+                    <a href="http://BuildAzure.com" style="float: right" target="_blank"><img style="height: 6em" src="https://i2.wp.com/buildazure.com/wp-content/uploads/2017/06/cropped-build-azure-logo-white-no-text.png?resize=150%2C150&amp;ssl=1"></a>
+                    This project is hosted as open source on Github at the following location, go there to view the source code for this project:<br>
+                    <a href="https://github.com/buildazure/azure-region-map">https://github.com/buildazure/azure-region-map</a>
+                </p>
+                <p>
+                    This project is created and maintained by <a href="http://BuildAzure.com">Chris Pietschmann</a>.
+                </p>
+                <p>
+                    <em>Disclaimer: This project is not affiliated with Microsoft.</em>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
-    <ul id="results-panel"></ul>
 </div>
-</body>
 
-</html>
+<!-- About Modal -->
+<div class="modal fade" id="faqModal" tabindex="-1" role="dialog" aria-labelledby="faqModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                <h4 class="modal-title" id="faqModalLabel">FAQ</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                </p><h4>Where is the location data for this map from?</h4>
+                The following Azure CLI command was used to retrieve the Latitude / Longitude coordinates of each of the Microsoft Azure "Public Cloud" Regions (aka Locations):
+                <pre>## Azure CLI 1.0
+azure location list --json &gt; azure_regions.json
+
+## Azure CLI 2.0
+az account list-locations &gt; azure_regions.json</pre>
+                This Azure CLI command will output a JSON file containing the Azure Region data. This JSON file is pulled directly into this app for display.<br>
+                <br>
+                Additional data has been hand compiled / generated to include non-Public Cloud data center regions / locations, such as Germany, China, and the US Gov / DoD as well.<br>
+                <br>
+                All geocode locations for Azure Regions are estimates. They do not represent the actual physical location of a specific datacenter.
+                <p></p>
+                <p>
+                </p><h4>How many Azure Regions are there?</h4>
+                Currently, Azure is available in <a href="https://azure.microsoft.com/en-us/global-infrastructure/regions/">54 regions</a> around the world.
+                <a href="https://azure.microsoft.com/en-us/regions/"><img src="images/ms-azure-region-map.png" style="width: 100%"></a>
+                <em>This map image is from Microsoft. Follow the link to see it in full.</em>
+                <p></p>
+                <p>
+                </p><h4>How accurate are the points / geocodes?</h4>
+                The accuracy is basically to the general geographic region where the Azure Regions are located. Microsoft doesn't disclose the actual location or street address of the physical datacenters for security reasons. Much of the data on this map is taken directly from the geocode that Microsoft publishes for the datacenters. Other data (such as Germany, China, and US Gov / DoD) just point to the City or Region that Microsoft has indicated the region is in.
+                <p></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bing Map -->
+<div id="myMap"><div class="MicrosoftMap" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px;"><div style="position: absolute; overflow: hidden; width: 100%; height: 100%; top: 0px; left: 0px;"><div class="ms-composite" tabindex="-1" dir="ltr" style="z-index: 0; background-color: rgb(243, 242, 237); opacity: 1; position: absolute; top: 0px; left: 0px;"><canvas id="Microsoft.Maps.Imagery.RoadSceneWithoutLabels" width="516" height="505" style="z-index: 0; position: absolute; left: 0px; opacity: 1; transform-origin: left top; zoom: 1; width: 516px; height: 505px; transform: matrix(1, 0, 0, 1, 0, 0);"></canvas><div tabindex="0" id="mapFocus" aria-label="Bing Maps - Interact to see more" style="top: 1px; left: 1px; z-index: 1; position: absolute; width: 514px; height: 503px;"></div><canvas style="z-index: 25000; position: absolute; opacity: 0; width: 0px; height: 0px;" width="0" height="0"></canvas><canvas id="vectorCanvas" style="z-index: 10100; position: absolute; left: 0px; opacity: 1; transform-origin: left top; zoom: 1; transform: matrix(1, 0, 0, 1, 0, 0); width: 516px; height: 505px;" width="774" height="757"></canvas><canvas id="labelCanvasId" class="labelCanvas" width="1935" height="1894" style="outline: none; position: absolute; z-index: 20000; width: 1290px; height: 1263px; top: -379px; left: -387px; transform: translate(0px, 0px); display: block;"></canvas></div></div><div style="position: absolute; overflow: hidden; width: 100%; height: 100%; top: 0px; left: 0px; pointer-events: none; transform: scale(1); z-index: 100;"><div style="position: absolute; width: 100%; height: 100%; pointer-events: none;"><div id="MicrosoftNav" class="NavBar_Container Light" style="position: absolute; left: auto; top: 0px; right: 0px; bottom: auto;"><div class="NavBar_MapTypeButtonContainerWrapper"><div class="NavBar_MapTypeButtonContainer NavBar_MapTypeButtonHeight NavBar_Delay withBackground" id="MapStyleSelector" tabindex="0" title="Current Map Type: Road - View aerial, birds eye, and more..." role="menu" aria-expanded="false"><div id="NavBar_MapTypeIcon" class="NavBar_MapTypeButtonIcon NavBar_MapTypeButtonHeight selectorIconRoad"></div><div id="NavBar_MapTypeText" class="NavBar_MapTypeButtonText NavBar_MapTypeButtonHeight">Road</div><div class="NavBar_MapTypeButtonDropDownIcon NavBar_MapTypeButtonHeight selectorIconDropDown"></div></div></div><div id="RadialMenu" class="NavBar_DropDown menu" role="listbox" aria-multiselectable="true"><div class="slot road selected" tabindex="0" role="option" aria-selected="true"><div class="mapTypeIcon"></div><div class="pie-label labelStyle">Road</div><div class="pie-label-description labelStyleDescription">A standard road map</div></div><div class="slot aerial" tabindex="0" role="option" aria-selected="false"><div class="mapTypeIcon"></div><div class="pie-label labelStyle">Aerial</div><div class="pie-label-description labelStyleDescription">A detailed look from above</div></div><div class="slot birdseye" tabindex="0" role="option" aria-selected="false"><div class="mapTypeIcon"></div><div class="pie-label labelStyle">Bird's eye</div><div class="pie-label-description labelStyleDescription">A better angle of aerial photography</div></div><div class="slot streetside" tabindex="0" role="option" aria-selected="false"><div class="mapTypeIcon"></div><div class="pie-label labelStyle">Streetside</div><div class="pie-label-description labelStyleDescription">Explore at eye level</div></div><div class="switchSlot labelToggle" for="navbarLabelToggleInput" tabindex="0" role="checkbox" aria-checked="true" aria-label="" title="Turn labels on or off" aria-selected="false"><div class="labelToggle_Container labelStyle"><input id="navbarLabelToggleInput" type="checkbox" class="labelToggle_Input" checked="" tabindex="-1"><label class="labelStyleSwitch" title="Labels">Labels</label><label class="labelToggle_label" helper="[object Object]" role="button"></label></div></div></div><div class="birdseyeV2InfoExitControl  be2LabelsEnabled" style="display: none;"><div class="birdseyeV2InfoExitControl left"><div class="birdseyeV2InfoExitControl left bottom"><div class="birdseyeV2Geochain"></div></div></div><div class="birdseyeV2InfoExitControl right"><a id="BirdseyeV2ExitButton" class="NavBar_Button birdseyeV2Exit" title="Exit Bird's eye" href="#" role="button"><div class="NavButton_Icon"></div></a><div class="be2LabelToggleContainer"><div class="be2LabelsTag">Labels</div><div class="be2LabelToggle switchSlot labelToggle" for="be2ToggleInput"><div class="labelToggle_Container labelStyle"><input id="be2ToggleInput" type="checkbox" class="labelToggle_Input" checked="" tabindex="-1"><label class="labelToggle_label" role="button"></label></div></div></div></div></div><div class="bm_LocateMeControl"><a id="LocateMeButton" class="NavBar_Button NavBar_locateMe" title="Locate me" href="#" role="button"><div class="NavButton_Icon"></div></a></div><div id="RotateButtonContainer" class="NavBarButton_Container" style="margin-top: 132.5px; display: none;"><a id="RotateLeftButton" class="NavBar_Button NavBar_rotateLeft" title="Rotate left" href="#" role="button"><div class="NavButton_Icon"></div></a><a id="RotateButton" class="NavBar_Button NavBar_rotate NavBar_heading_0D" title="Reset orientation" href="#" role="button"><div class="NavButton_Icon"></div></a><a id="RotateRightButton" class="NavBar_Button NavBar_rotateRight" title="Rotate right" href="#" role="button"><div class="NavButton_Icon"></div></a></div><a id="ZoomInButton" class="NavBar_Button NavBar_zoomIn" title="Zoom in" href="#" role="button" aria-label="Current Level 10, Zoom In "><div class="NavButton_Icon"></div></a><a id="ZoomOutButton" class="NavBar_Button NavBar_zoomOut" title="Zoom out" href="#" role="button" tabindex="" aria-label="Current Level 10, Zoom Out"><div class="NavButton_Icon"></div></a></div><div style="z-index: 1002; position: absolute; left: 95.8883px; top: 49.9669px;"><div class="Infobox" data-tag="SDK.Infobox" style=""><a class="infobox-close" href="javascript:void(0)" data-tag="SDK.Infobox.CloseBtn" style=""><img class="infobox-close-img" src="data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9IjE0cHgiIHdpZHRoPSIxNHB4IiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2ZXJzaW9uPSIxLjEiPjxwYXRoIGQ9Ik03LDBDMy4xMzQsMCwwLDMuMTM0LDAsN2MwLDMuODY3LDMuMTM0LDcsNyw3YzMuODY3LDAsNy0zLjEzMyw3LTdDMTQsMy4xMzQsMTAuODY3LDAsNywweiBNMTAuNSw5LjVsLTEsMUw3LDhsLTIuNSwyLjVsLTEtMUw2LDdMMy41LDQuNWwxLTFMNyw2bDIuNS0yLjVsMSwxTDgsN0wxMC41LDkuNXoiLz48L3N2Zz4=" alt="close infobox"></a><div class="infobox-body" style="max-width: 256px; max-height: 126px; width: 166px;"><div class="infobox-title" data-tag="SDK.Infobox.Title">North Central US</div><div class="infobox-info" data-tag="SDK.Infobox.Description" style=""><div>Latitude: 41.8819<br>Longitude: -87.6278</div></div><div class="infobox-actions" data-tag="SDK.Infobox.Actions" style="display: none;"><ul class="infobox-actions-list"><div></div></ul></div></div><div class="infobox-stalk" data-tag="SDK.Infobox.Pointer" style="top: 110.8px; left: 76px;"></div></div><div class="InfoboxCustom" style="display: none;"></div></div></div><div class="bm_bottomLeftOverlay" style="position: absolute; left: 5px; bottom: 5px;"><div class="bm_LogoContainer quadrantOverride"><a href="https://www.bing.com/maps?cp=41.804624815005525~-87.51915665724681&amp;lvl=10&amp;style=r&amp;FORM=BMLOGO" title="Bing Maps" target="mc_bingMaps" style="pointer-events: auto"><div id="bingLogo" class="bingLogoLight"></div></a></div></div><div class="bm_bottomRightOverlay" style="position: absolute; right: 25px; bottom: 5px;"><div class="ScaleBar bm_disable_highlighting quadrantOverride" style="z-index: 0;font-family: arial, helvetica, sans-serif;font-size: 9px;text-align: right;display: block"><div style="display: inline-block;position: relative;margin-left: 1em;padding-top: .5em;padding-bottom: .05em;width: 72px"><div style="color: #000;text-shadow: #fff 1px 1px">5 miles</div><div style="width: 100%;height: 3px;border: 1px solid #fff;line-height: 0;overflow: hidden"><div style="width: 100%;height: 0;border: 10px solid #49f"></div></div></div><div style="display: inline-block;position: relative;margin-left: 1em;padding-top: .5em;padding-bottom: .05em;width: 89px"><div style="color: #000;text-shadow: #fff 1px 1px">10 km</div><div style="width: 100%;height: 3px;border: 1px solid #fff;line-height: 0;overflow: hidden"><div style="width: 100%;height: 0;border: 10px solid #49f"></div></div></div></div><div class="CopyrightContainer quadrantOverride"><div id="TermsLinkContainer" class="TermsLinkContainer"><a class="ShadowTextDark" href="https://www.microsoft.com/maps/assets/docs/terms.aspx" title="Terms" target="mc_bingMaps" style="pointer-events: auto">Terms</a></div><div class="CopyrightControl" style="max-width: 407px;"><span class="ShadowTextDark"><span class="CopyrightAttributionStyle">© 2019 HERE, © 2019 Microsoft Corporation</span><a class="copyrightLink ShadowTextDark" style="pointer-events: auto; display: none;"></a></span></div></div></div></div></div></div>
+<script type="text/javascript">
+    function loadMap() {
+        var map = new Microsoft.Maps.Map(document.getElementById('myMap'), {
+            zoom: 1,
+            credentials: 'AhVlsbaaL8_Yanoda96TIcenxQ2yn1ERj4Ln-u_UJLQx_rl7YV2TKuUyTlC7o2Nb'
+        });
+
+        var infobox = new Microsoft.Maps.Infobox(map.getCenter(), { visible: false });
+        infobox.setMap(map);
+
+        function loadRegions(jsonFileUrl, pointColor) {
+            $.ajax({
+                url: jsonFileUrl,
+                dataType: 'json',
+                method: 'GET',
+                cache: false,
+                success: function(d) {
+
+                    for(var i = 0; i < d.length; i++) {
+                        var item = d[i];
+
+                        try {
+                            var pin = new Microsoft.Maps.Pushpin(
+                                new Microsoft.Maps.Location(item.latitude, item.longitude),
+                                { color: pointColor });
+
+                            pin.metadata = item;
+
+                            Microsoft.Maps.Events.addHandler(pin, 'click', function(args) {
+                                var metadata = args.target.metadata;
+
+                                infobox.setOptions({
+                                    location: args.target.getLocation(),
+                                    title: metadata.displayName,
+                                    description: "Latitude: " + metadata.latitude + "<br/>Longitude: " + metadata.longitude,
+                                    visible: true
+                                });
+                            });
+
+                            map.entities.push(pin);
+
+                        } catch(e) {
+                            alert(e);
+                        }
+
+                    }
+
+                }
+            });
+        }
+
+        loadRegions('data/azure_regions.json', 'blue');
+        loadRegions('data/other_azure_regions.json', 'blue'); //'green');
+        loadRegions('data/other_us_gov.json', 'blue'); //'red');
+    }
+</script>
+<script type="text/javascript" src="https://www.bing.com/api/maps/mapcontrol?callback=loadMap" async="" defer=""></script>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-81892238-2', 'auto');
+    ga('send', 'pageview');
+</script>
+
+
+</body></html>

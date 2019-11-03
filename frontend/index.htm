@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Microsoft Azure Region Map</title>
+        <meta http-equiv='Content-Type' content='text/html; charset=utf-8'/>
+        <meta name="viewport" content="width=500, initial-scale=1">
+
+        <meta charset="utf-8" />
+        <meta http-equiv="x-ua-compatible" content="IE=Edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta name="description" content="This sample shows how to create a simple heat map from a data set of point features." />
+        <meta name="keywords" content="map, gis, API, SDK, heatmap, heat map, heatmaps, heat maps, density, layer, thermatic" />
+        <meta name="author" content="Microsoft Azure Maps" />
+
+
+        <script   src="https://code.jquery.com/jquery-1.12.4.min.js"   integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="   crossorigin="anonymous"></script>
+
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+        <!-- Optional theme -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+        <!-- Latest compiled and minified JavaScript -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+        <!-- Add references to the Azure Maps Map control JavaScript and CSS files. -->
+        <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css" />
+        <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+
+        <style>
+            #myMap {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+    </head>
+    <body>
+
+
+        <!-- About Modal -->
+        <div class="modal fade" id="aboutModal" tabindex="-1" role="dialog" aria-labelledby="aboutModalLabel">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="aboutModalLabel">About</h4>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        The Microsoft Azure Regions Interactive Map shows the location of each of the Microsoft Azure Regions plotted over a map using the Bing Maps v8 JavaScript SDK.
+                    </p>
+                    <p>
+                        <a href="http://BuildAzure.com" style="float: right" target="_blank"><img style="height: 6em" src="https://i2.wp.com/buildazure.com/wp-content/uploads/2017/06/cropped-build-azure-logo-white-no-text.png?resize=150%2C150&ssl=1"></a>
+                        This project is hosted as open source on Github at the following location, go there to view the source code for this project:</br>
+                        <a href="https://github.com/buildazure/azure-region-map">https://github.com/buildazure/azure-region-map</a>
+                    </p>
+                    <p>
+                        This project is created and maintained by <a href="http://BuildAzure.com">Chris Pietschmann</a>.
+                    </p>
+                    <p>
+                        <em>Disclaimer: This project is not affiliated with Microsoft.</em>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Modal -->
+        <div class="modal fade" id="faqModal" tabindex="-1" role="dialog" aria-labelledby="faqModalLabel">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="faqModalLabel">FAQ</h4>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        <h4>Where is the location data for this map from?</h4>
+                        The following Azure CLI command was used to retrieve the Latitude / Longitude coordinates of each of the Microsoft Azure "Public Cloud" Regions (aka Locations):
+                        <pre>## Azure CLI 1.0
+azure location list --json > azure_regions.json
+                        
+## Azure CLI 2.0
+az account list-locations > azure_regions.json</pre>
+                        This Azure CLI command will output a JSON file containing the Azure Region data. This JSON file is pulled directly into this app for display.<br/>
+                        <br/>
+                        Additional data has been hand compiled / generated to include non-Public Cloud data center regions / locations, such as Germany, China, and the US Gov / DoD as well.<br/>
+                        <br/>
+                        All geocode locations for Azure Regions are estimates. They do not represent the actual physical location of a specific datacenter.
+                    </p>
+                    <p>
+                        <h4>How many Azure Regions are there?</h4>
+                        Currently, Azure is available in <a href="https://azure.microsoft.com/en-us/global-infrastructure/regions/">54 regions</a> around the world.
+                        <a href="https://azure.microsoft.com/en-us/regions/"><img src="images/ms-azure-region-map.png" style="width: 100%"/></a>
+                        <em>This map image is from Microsoft. Follow the link to see it in full.</em>
+                    </p>
+                    <p>
+                        <h4>How accurate are the points / geocodes?</h4>
+                        The accuracy is basically to the general geographic region where the Azure Regions are located. Microsoft doesn't disclose the actual location or street address of the physical datacenters for security reasons. Much of the data on this map is taken directly from the geocode that Microsoft publishes for the datacenters. Other data (such as Germany, China, and US Gov / DoD) just point to the City or Region that Microsoft has indicated the region is in.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bing Map -->
+        <div id='myMap'></div>
+        <script type='text/javascript'>
+            //URL to custom endpoint to fetch Access token
+            var url = 'https://adtokens.azurewebsites.net/api/HttpTrigger1?code=dv9Xz4tZQthdufbocOV9RLaaUhQoegXQJSeQQckm6DZyG/1ymppSoQ==';
+
+            /* Instantiate map to the div with id "map" */
+            map = new atlas.Map('myMap', {
+                view: 'Auto',
+
+                //Add your Azure Maps subscription key to the map SDK. Get an Azure Maps key at https://azure.com/maps
+                authOptions: {
+                    authType: 'subscriptionKey',
+                    subscriptionKey: '-kpBJTkTaDyoV4mIjlFzb0IDSqmVJ31vAtV0-J_ucPM'
+                }
+            });
+
+
+            //Wait until the map resources are ready.
+            map.events.add('ready', function () {
+//Define an HTML template for a custom popup content laypout.
+                var popupTemplate = '<div class="customInfobox"><div class="name">{name}</div>{description}</div>';
+
+//Create a data source and add it to the map.
+                var dataSource = new atlas.source.DataSource();
+                map.sources.add(dataSource);
+
+                dataSource.add(new atlas.data.Feature(new atlas.data.Point([-122.1333, 47.63]), {
+                    name: 'Microsoft Building 41',
+                    description: '15571 NE 31st St, Redmond, WA 98052'
+                }));
+
+//Create a layer to render point data.
+                var symbolLayer = new atlas.layer.SymbolLayer(dataSource);
+
+//Add the polygon and line the symbol layer to the map.
+                map.layers.add(symbolLayer);
+
+//Create a popup but leave it closed so we can update it and display it later.
+                popup = new atlas.Popup({
+                    pixelOffset: [0, -18],
+                    closeButton: false
+                });
+
+//Add a hover event to the symbol layer.
+                map.events.add('mouseover', symbolLayer, function (e) {
+                    //Make sure that the point exists.
+                    if (e.shapes && e.shapes.length > 0) {
+                        var content, coordinate;
+                        var properties = e.shapes[0].getProperties();
+                        content = popupTemplate.replace(/{name}/g, properties.name).replace(/{description}/g, properties.description);
+                        coordinate = e.shapes[0].getCoordinates();
+
+                        popup.setOptions({
+                            //Update the content of the popup.
+                            content: content,
+
+                            //Update the popup's position with the symbol's coordinate.
+                            position: coordinate
+
+                        });
+                        //Open the popup.
+                        popup.open(map);
+                    }
+
+                    //Create a data source and add it to the map.
+                    var hDatasource = new atlas.source.DataSource();
+                    map.sources.add(hDatasource);
+                    //Load a data set of points, in this case earthquake data from the USGS.
+                    hDatasource.importDataFromUrl('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson');
+                    //Create a heatmap and add it to the map.
+                    map.layers.add(new atlas.layer.HeatMapLayer(hDatasource, null, {
+                        radius: 10,
+                        opacity: 0.8
+                    }), 'labels');
+                });
+
+                map.events.add('mouseleave', symbolLayer, function (){
+                    popup.close();
+                });
+
+            });
+        </script>
+        <script type='text/javascript' src='https://www.bing.com/api/maps/mapcontrol?callback=loadMap' async defer></script>
+
+        <script>
+            (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+            })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+            ga('create', 'UA-81892238-2', 'auto');
+            ga('send', 'pageview');
+        </script>
+    </body>
+</html>
