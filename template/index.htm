@@ -84,7 +84,7 @@
                         The following Azure CLI command was used to retrieve the Latitude / Longitude coordinates of each of the Microsoft Azure "Public Cloud" Regions (aka Locations):
                         <pre>## Azure CLI 1.0
 azure location list --json > azure_regions.json
-                        
+
 ## Azure CLI 2.0
 az account list-locations > azure_regions.json</pre>
                         This Azure CLI command will output a JSON file containing the Azure Region data. This JSON file is pulled directly into this app for display.<br/>
@@ -131,10 +131,10 @@ az account list-locations > azure_regions.json</pre>
 
             //Wait until the map resources are ready.
             map.events.add('ready', function () {
-//Define an HTML template for a custom popup content laypout.
+            //Define an HTML template for a custom popup content laypout.
                 var popupTemplate = '<div class="customInfobox"><div class="name">{name}</div>{description}</div>';
 
-//Create a data source and add it to the map.
+            //Create a data source and add it to the map.
                 var dataSource = new atlas.source.DataSource();
                 map.sources.add(dataSource);
 
@@ -143,19 +143,19 @@ az account list-locations > azure_regions.json</pre>
                     description: '15571 NE 31st St, Redmond, WA 98052'
                 }));
 
-//Create a layer to render point data.
+                //Create a layer to render point data.
                 var symbolLayer = new atlas.layer.SymbolLayer(dataSource);
 
-//Add the polygon and line the symbol layer to the map.
+                //Add the polygon and line the symbol layer to the map.
                 map.layers.add(symbolLayer);
 
-//Create a popup but leave it closed so we can update it and display it later.
+                //Create a popup but leave it closed so we can update it and display it later.
                 popup = new atlas.Popup({
                     pixelOffset: [0, -18],
                     closeButton: false
                 });
 
-//Add a hover event to the symbol layer.
+                //Add a hover event to the symbol layer.
                 map.events.add('mouseover', symbolLayer, function (e) {
                     //Make sure that the point exists.
                     if (e.shapes && e.shapes.length > 0) {
