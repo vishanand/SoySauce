@@ -180,7 +180,9 @@ az account list-locations > azure_regions.json</pre>
                     var hDatasource = new atlas.source.DataSource();
                     map.sources.add(hDatasource);
                     //Load a data set of points, in this case earthquake data from the USGS.
-                    hDatasource.importDataFromUrl('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson');
+                    // hDatasource.importDataFromUrl('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson');
+                    hDatasource.importDataFromUrl('./data/geo_data.geojson');
+
                     //Create a heatmap and add it to the map.
                     map.layers.add(new atlas.layer.HeatMapLayer(hDatasource, null, {
                         radius: 10,
