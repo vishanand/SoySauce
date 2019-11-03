@@ -137,11 +137,10 @@ az account list-locations > azure_regions.json</pre>
             //Create a data source and add it to the map.
                 var dataSource = new atlas.source.DataSource();
                 map.sources.add(dataSource);
-
+                
                 $.getJSON('data/coord_data.json',function(data){
-                    alert(data.buildings_meta[0][0])
                     for (var i = 0; i < data.buildings_meta.length; i++) {
-                        dataSource.add(new atlas.data.Feature(new atlas.data.Point([parseFloat(data.buildings_meta[i][3]), parseFloat(data.buildings_meta[i][4])]), {
+                        dataSource.add(new atlas.data.Feature(new atlas.data.Point([parseFloat(data.buildings_meta[i][4]), parseFloat(data.buildings_meta[i][3])]), {
                             name: data.buildings_meta[i][2],
                             description: data.buildings_meta[i][3]
                         }));
