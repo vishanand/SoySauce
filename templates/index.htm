@@ -119,8 +119,9 @@ az account list-locations > azure_regions.json</pre>
 
             /* Instantiate map to the div with id "map" */
             map = new atlas.Map('myMap', {
-                view: 'Auto',
-
+                center: [-83.01485,39.99925],
+                zoom: 15,
+                view: "Auto",
                 //Add your Azure Maps subscription key to the map SDK. Get an Azure Maps key at https://azure.com/maps
                 authOptions: {
                     authType: 'subscriptionKey',
