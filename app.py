@@ -53,9 +53,9 @@ class Building_Time(Resource):
             building_data = buildings_meta_map[mid]
             print(building_data)
             if (building_data):
-                point = Point((float(building_data[3]), float(building_data[2])))
+                point = Point((float(building_data[2]), float(building_data[3], 0.5)))
                 delta = (float(currJSON["building"][i][1]) - float(prevJSON["building"][i][1]))
-                res.append(Feature(geometry=point, properties={"mag": 3}))
+                res.append(Feature(geometry=point, properties={"mag": 1}))
         feature_collection = FeatureCollection(res)
         with open('./static/data/geo_data.geojson', 'w') as f:
             dump(feature_collection, f)
